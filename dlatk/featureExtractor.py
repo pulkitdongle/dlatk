@@ -30,6 +30,9 @@ from . import dlaConstants as dlac
 from . import textCleaner as tc
 from .mysqlmethods import mysqlMethods as mm
 
+from .database.query import *
+from .database.sqlWrapper import SqlWrapper
+
 #local / nlp
 from .lib.happierfuntokenizing import Tokenizer #Potts tokenizer
 
@@ -37,6 +40,7 @@ try:
     import jsonrpclib
     from simplejson import loads
 except ImportError:
+
     print("warning from FeatureExtractor: unable to import jsonrpclib or simplejson")
     pass
 try:
@@ -139,12 +143,19 @@ class FeatureExtractor(DLAWorker):
             mfTableName = self.createFeatureTable(mfName, "VARCHAR(%d)" % mfLength, 'INTEGER', tableName, valueFunc, extension = extension)
 
         #SELECT / LOOP ON CORREL FIELD FIRST:
-        usql = """SELECT %s FROM %s GROUP BY %s""" % (
-            self.correl_field, self.corptable, self.correl_field)
+       # usql = """SELECT %s FROM %s GROUP BY %s""" % (
+       #     self.correl_field, self.corptable, self.correl_field)
+
+        query = QueryBuilder.create_select_query(self.corptable).set_fields([self.correl_field]).group_by([self.correl_field])
+
         msgs = 0 # keeps track of the number of messages read
-        cfRows = FeatureExtractor.noneToNull(mm.executeGetList(self.corpdb, self.dbCursor, usql, charset=self.encoding, use_unicode=self.use_unicode))#SSCursor woudl be better, but it loses connection
+        #cfRows = FeatureExtractor.noneToNull(mm.executeGetList(self.corpdb, self.dbCursor, usql, charset=self.encoding, use_unicode=self.use_unicode))#SSCursor woudl be better, but it loses connection
+        cfRows = FeatureExtractor.noneToNull(query.execute_query(self))
+
         dlac.warn("finding messages for %d '%s's"%(len(cfRows), self.correl_field))
-        if len(cfRows)*n < dlac.MAX_TO_DISABLE_KEYS: mm.disableTableKeys(self.corpdb, self.dbCursor, featureTableName, charset=self.encoding, use_unicode=self.use_unicode)#for faster, when enough space for repair by sorting
+        #if len(cfRows)*n < dlac.MAX_TO_DISABLE_KEYS: mm.disableTableKeys(self.corpdb, self.dbCursor, featureTableName, charset=self.encoding, use_unicode=self.use_unicode)#for faster, when enough space for repair by sorting
+
+        if len(cfRows)*n < dlac.MAX_TO_DISABLE_KEYS: self.sql_wrapper.disable_table_keys(featureTableName)
 
         #warnedMaybeForeignLanguage = False
         for cfRow in cfRows:
@@ -240,7 +251,8 @@ class FeatureExtractor(DLAWorker):
 
         if len(cfRows)*n < dlac.MAX_TO_DISABLE_KEYS:
             dlac.warn("Adding Keys (if goes to keycache, then decrease MAX_TO_DISABLE_KEYS or run myisamchk -n).")
-            mm.enableTableKeys(self.corpdb, self.dbCursor, featureTableName, charset=self.encoding, use_unicode=self.use_unicode)#rebuilds keys
+            #mm.enableTableKeys(self.corpdb, self.dbCursor, featureTableName, charset=self.encoding, use_unicode=self.use_unicode)#rebuilds keys
+            self.sql_wrapper.enable_table_keys(featureTableName)
         dlac.warn("Done\n")
         return featureTableName
 
