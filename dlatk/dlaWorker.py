@@ -2,7 +2,7 @@ import sys
 import time
 import MySQLdb
 
-from .database.sqlWrapper import SqlWrapper
+from .database.dataEngine import DataEngine 
 
 from . import dlaConstants as dlac
 from .mysqlmethods import mysqlMethods as mm 
@@ -49,8 +49,8 @@ class DLAWorker(object):
         self.use_unicode = use_unicode
 
         self.db_type = dlac.DB_TYPE
-        self.sql_wrapper = SqlWrapper(corpdb, mysql_host, encoding, use_unicode, self.db_type)
-        (self.dbConn, self.dbCursor, self.dictCursor) = self.sql_wrapper.connect()
+        self.data_engine = DataEngine(corpdb, mysql_host, encoding, use_unicode, self.db_type)
+        (self.dbConn, self.dbCursor, self.dictCursor) = self.data_engine.connect()
 
 #        (self.dbConn, self.dbCursor, self.dictCursor) = mm.dbConnect(corpdb, host=mysql_host, charset=encoding)
         self.lexicondb = lexicondb

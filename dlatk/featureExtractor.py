@@ -31,7 +31,7 @@ from . import textCleaner as tc
 from .mysqlmethods import mysqlMethods as mm
 
 from .database.query import *
-from .database.sqlWrapper import SqlWrapper
+from .database.dataEngine import DataEngine
 
 #local / nlp
 from .lib.happierfuntokenizing import Tokenizer #Potts tokenizer
@@ -146,16 +146,18 @@ class FeatureExtractor(DLAWorker):
        # usql = """SELECT %s FROM %s GROUP BY %s""" % (
        #     self.correl_field, self.corptable, self.correl_field)
 
-        query = QueryBuilder.create_select_query(self.corptable).set_fields([self.correl_field]).group_by([self.correl_field])
+        #query = QueryBuilder.create_select_query(self.corptable).set_fields([self.correl_field]).group_by([self.correl_field])
+        query = QueryBuilder(self.data_engine).create_select_query(self.corptable).set_fields([self.correl_field]).group_by([self.correl_field])
+
 
         msgs = 0 # keeps track of the number of messages read
         #cfRows = FeatureExtractor.noneToNull(mm.executeGetList(self.corpdb, self.dbCursor, usql, charset=self.encoding, use_unicode=self.use_unicode))#SSCursor woudl be better, but it loses connection
-        cfRows = FeatureExtractor.noneToNull(query.execute_query(self))
+        cfRows = FeatureExtractor.noneToNull(query.execute_query())
 
         dlac.warn("finding messages for %d '%s's"%(len(cfRows), self.correl_field))
         #if len(cfRows)*n < dlac.MAX_TO_DISABLE_KEYS: mm.disableTableKeys(self.corpdb, self.dbCursor, featureTableName, charset=self.encoding, use_unicode=self.use_unicode)#for faster, when enough space for repair by sorting
 
-        if len(cfRows)*n < dlac.MAX_TO_DISABLE_KEYS: self.sql_wrapper.disable_table_keys(featureTableName)
+        if len(cfRows)*n < dlac.MAX_TO_DISABLE_KEYS: self.data_engine.disable_table_keys(featureTableName)
 
         #warnedMaybeForeignLanguage = False
         for cfRow in cfRows:
@@ -252,7 +254,7 @@ class FeatureExtractor(DLAWorker):
         if len(cfRows)*n < dlac.MAX_TO_DISABLE_KEYS:
             dlac.warn("Adding Keys (if goes to keycache, then decrease MAX_TO_DISABLE_KEYS or run myisamchk -n).")
             #mm.enableTableKeys(self.corpdb, self.dbCursor, featureTableName, charset=self.encoding, use_unicode=self.use_unicode)#rebuilds keys
-            self.sql_wrapper.enable_table_keys(featureTableName)
+            self.data_engine.enable_table_keys(featureTableName)
         dlac.warn("Done\n")
         return featureTableName
 
